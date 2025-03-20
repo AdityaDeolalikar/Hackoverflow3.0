@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { Rowdies } from "next/font/google";
+import { Nunito } from "next/font/google";
 import "./globals.css";
 
-const rowdies = Rowdies({
-  weight: ['300', '400', '700'],
+const nunito = Nunito({
+  weight: ['300', '400', '500', '600', '700'],
   subsets: ['latin'],
   display: 'swap',
 });
@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${rowdies.className} antialiased`}>
+      <body className={`${nunito.className} antialiased`}>
         
         <main>
           {children}
