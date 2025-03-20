@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Navbar } from "../components/Navbar";
+
 
 // Define interfaces for better type safety
 interface City {
