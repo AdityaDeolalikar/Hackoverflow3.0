@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 
 
 // Define interfaces for better type safety
@@ -78,44 +78,14 @@ const allCities: City[] = [...indianCities, ...chineseCities];
 const Page = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const [selectedCity, setSelectedCity] = useState<City>(indianCities[0]);
-  const [airQualityData, setAirQualityData] = useState<AirQualityData | null>(
-    null
-  );
+  const [airQualityData, setAirQualityData] = useState<AirQualityData | null>(null);
   const [waqiData, setWaqiData] = useState<WaqiData | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
   const [circles, setCircles] = useState<google.maps.Circle[]>([]);
   const [apiSource, setApiSource] = useState<"google" | "waqi">("google");
 
-  useEffect(() => {
-    // Load Google Maps script
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDeBXAqwT2DaWTyEnL-97ZgNmlT9be8xTg&libraries=visualization,places&v=weekly`;
-    script.async = true;
-    script.defer = true;
-    script.onload = initMap;
-    document.head.appendChild(script);
-
-    return () => {
-      document.head.removeChild(script);
-    };
-  }, []);
-
-  // Fetch air quality data when selected city changes
-  useEffect(() => {
-    if (selectedCity && map) {
-      if (apiSource === "google") {
-        fetchAirQualityData(selectedCity);
-      } else {
-        fetchWaqiData(selectedCity);
-      }
-
-      // Center map on selected city
-      map.setCenter({ lat: selectedCity.lat, lng: selectedCity.lng });
-    }
-  }, [selectedCity, map, apiSource]);
-
-  const initMap = () => {
+  const initMap = useCallback(() => {
     if (!mapRef.current) return;
 
     const newMap = new window.google.maps.Map(mapRef.current, {
@@ -125,12 +95,12 @@ const Page = () => {
     });
 
     setMap(newMap);
-  };
+  }, [selectedCity]);
 
-  const fetchAirQualityData = async (city: City) => {
+  const fetchAirQualityData = useCallback(async (city: City) => {
     try {
       const response = await fetch(
-        `https://airquality.googleapis.com/v1/currentConditions:lookup?key=AIzaSyDeBXAqwT2DaWTyEnL-97ZgNmlT9be8xTg`,
+        `https://airquality.googleapis.com/v1/currentConditions:lookup?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`,
         {
           method: "POST",
           headers: {
@@ -156,12 +126,12 @@ const Page = () => {
     } catch (error) {
       console.error("Error fetching air quality data:", error);
     }
-  };
+  }, [map]);
 
-  const fetchWaqiData = async (city: City) => {
+  const fetchWaqiData = useCallback(async (city: City) => {
     try {
       // Using the WAQI API with the provided token
-      const token = "75329b24040dbb61fd12b7baaf5f478d824b28e5";
+      const token = process.env.NEXT_PUBLIC_WAQI_API_TOKEN;
       const response = await fetch(
         `https://api.waqi.info/feed/${city.name}/?token=${token}`
       );
@@ -177,7 +147,35 @@ const Page = () => {
     } catch (error) {
       console.error("Error fetching WAQI data:", error);
     }
-  };
+  }, [map]);
+
+  useEffect(() => {
+    // Load Google Maps script
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=visualization,places&v=weekly`;
+    script.async = true;
+    script.defer = true;
+    script.onload = initMap;
+    document.head.appendChild(script);
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, [initMap]);
+
+  // Fetch air quality data when selected city changes
+  useEffect(() => {
+    if (selectedCity && map) {
+      if (apiSource === "google") {
+        fetchAirQualityData(selectedCity);
+      } else {
+        fetchWaqiData(selectedCity);
+      }
+
+      // Center map on selected city
+      map.setCenter({ lat: selectedCity.lat, lng: selectedCity.lng });
+    }
+  }, [selectedCity, map, apiSource, fetchAirQualityData, fetchWaqiData]);
 
   const displayAirQualityOnMap = (
     data: AirQualityData,
