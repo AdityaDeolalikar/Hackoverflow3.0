@@ -8,6 +8,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import ImpactSection from "./components/ImpactSection";
 import KeyFeatures from "./components/KeyFeatures";
 import Testimonials from "./components/Testimonials";
+import { Footer } from "./components/Footer";
 gsap.registerPlugin(ScrollTrigger); 
 
 export default function Home() {
@@ -61,6 +62,7 @@ export default function Home() {
         <ImpactSection />
         <KeyFeatures />
         <Testimonials />
+        <Footer />
       </div>
     </>
   );

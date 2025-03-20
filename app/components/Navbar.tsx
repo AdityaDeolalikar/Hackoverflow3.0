@@ -55,7 +55,7 @@ export function Navbar() {
               isScrolled ? "text-gray-900" : "text-white"
             )}
           >
-            LOGO
+            TerraSynth
           </Link>
 
           {/* Desktop Navigation */}
