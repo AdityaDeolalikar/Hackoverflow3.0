@@ -57,7 +57,7 @@ const ImpactSection = () => {
   }, []);
 
   return (
-    <div ref={sectionRef}>
+    <div ref={sectionRef} id="impact">
       <div className="flex flex-col items-center justify-center mt-10 ">
         <h2 className="text-green-600 text-center font-bold px-4 text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl">
           Our Impact: Growing a Greener Tomorrow, Today.

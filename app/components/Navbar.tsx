@@ -9,12 +9,13 @@ import { Button } from "@/components/ui/button";
 interface NavItem {
   label: string;
   href: string;
+  isScroll?: boolean;
 }
 
 const navItems: NavItem[] = [
   { label: "Home", href: "/" },
-  { label: "About", href: "/about" },
-  { label: "Contact", href: "/contact" },
+  { label: "About", href: "#impact", isScroll: true },
+  { label: "Contact", href: "#testimonials", isScroll: true },
   { label: "Login", href: "/login" },
 ];
 
@@ -35,6 +36,27 @@ export function Navbar() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Handle smooth scroll
+  const handleScrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    
+    // If on homepage, scroll to section
+    if (window.location.pathname === '/') {
+      const element = document.getElementById(href.substring(1));
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      // If on another page, navigate to home and then scroll
+      window.location.href = `/${href}`;
+    }
+    
+    // Close menu if open
+    if (isMenuOpen) {
+      setIsMenuOpen(false);
+    }
+  };
 
   return (
     <header
@@ -64,6 +86,7 @@ export function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={(e) => item.isScroll ? handleScrollToSection(e, item.href) : null}
                 className={cn(
                   "text-sm font-medium relative group transition-colors",
                   isScrolled ? "text-gray-900 hover:text-gray-600" : "text-white hover:text-white/80"
@@ -119,7 +142,13 @@ export function Navbar() {
                   ? "text-gray-900 hover:text-gray-600 hover:bg-gray-50"
                   : "text-white hover:text-white/80 hover:bg-white/10"
               )}
-              onClick={() => setIsMenuOpen(false)}
+              onClick={(e) => {
+                if (item.isScroll) {
+                  handleScrollToSection(e, item.href);
+                } else {
+                  setIsMenuOpen(false);
+                }
+              }}
             >
               {item.label}
             </Link>

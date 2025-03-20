@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-
+import Link from "next/link";
+import { Menu, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 // Define interfaces for better type safety
 interface City {
@@ -78,7 +81,9 @@ const allCities: City[] = [...indianCities, ...chineseCities];
 const Page = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const [selectedCity, setSelectedCity] = useState<City>(indianCities[0]);
-  const [airQualityData, setAirQualityData] = useState<AirQualityData | null>(null);
+  const [airQualityData, setAirQualityData] = useState<AirQualityData | null>(
+    null
+  );
   const [waqiData, setWaqiData] = useState<WaqiData | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
@@ -97,57 +102,63 @@ const Page = () => {
     setMap(newMap);
   }, [selectedCity]);
 
-  const fetchAirQualityData = useCallback(async (city: City) => {
-    try {
-      const response = await fetch(
-        `https://airquality.googleapis.com/v1/currentConditions:lookup?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            location: {
-              latitude: city.lat,
-              longitude: city.lng,
+  const fetchAirQualityData = useCallback(
+    async (city: City) => {
+      try {
+        const response = await fetch(
+          `https://airquality.googleapis.com/v1/currentConditions:lookup?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
             },
-          }),
+            body: JSON.stringify({
+              location: {
+                latitude: city.lat,
+                longitude: city.lng,
+              },
+            }),
+          }
+        );
+
+        const data = await response.json();
+        setAirQualityData(data);
+        setWaqiData(null);
+
+        // Display air quality data on the map if available
+        if (data && map) {
+          displayAirQualityOnMap(data, map);
         }
-      );
-
-      const data = await response.json();
-      setAirQualityData(data);
-      setWaqiData(null);
-
-      // Display air quality data on the map if available
-      if (data && map) {
-        displayAirQualityOnMap(data, map);
+      } catch (error) {
+        console.error("Error fetching air quality data:", error);
       }
-    } catch (error) {
-      console.error("Error fetching air quality data:", error);
-    }
-  }, [map]);
+    },
+    [map]
+  );
 
-  const fetchWaqiData = useCallback(async (city: City) => {
-    try {
-      // Using the WAQI API with the provided token
-      const token = process.env.NEXT_PUBLIC_WAQI_API_TOKEN;
-      const response = await fetch(
-        `https://api.waqi.info/feed/${city.name}/?token=${token}`
-      );
+  const fetchWaqiData = useCallback(
+    async (city: City) => {
+      try {
+        // Using the WAQI API with the provided token
+        const token = process.env.NEXT_PUBLIC_WAQI_API_TOKEN;
+        const response = await fetch(
+          `https://api.waqi.info/feed/${city.name}/?token=${token}`
+        );
 
-      const data: WaqiData = await response.json();
-      setWaqiData(data);
-      setAirQualityData(null);
+        const data: WaqiData = await response.json();
+        setWaqiData(data);
+        setAirQualityData(null);
 
-      // Display WAQI data on the map if available
-      if (data && map && data.status === "ok") {
-        displayWaqiOnMap(data, map);
+        // Display WAQI data on the map if available
+        if (data && map && data.status === "ok") {
+          displayWaqiOnMap(data, map);
+        }
+      } catch (error) {
+        console.error("Error fetching WAQI data:", error);
       }
-    } catch (error) {
-      console.error("Error fetching WAQI data:", error);
-    }
-  }, [map]);
+    },
+    [map]
+  );
 
   useEffect(() => {
     // Load Google Maps script
@@ -309,9 +320,113 @@ const Page = () => {
     if (aqi <= 300) return "#99004C"; // Very Unhealthy
     return "#7E0023"; // Hazardous
   };
+  interface NavItem {
+    label: string;
+    href: string;
+  }
+
+  const navItems: NavItem[] = [
+    { label: "Home", href: "/" },
+    { label: "About", href: "/#impact" },
+    { label: "Contact", href: "/#testimonials" },
+    { label: "Login", href: "/login" },
+  ];
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Handle scroll effect
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 10) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
     <div>
+      {/* Navbar */}
+      <header
+        className={cn(
+          "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+          isScrolled ? "bg-gray-900 shadow-md" : "bg-gray-900/95"
+        )}
+      >
+        <div className="container mx-auto px-4">
+          <div className="flex h-20 items-center justify-between">
+            {/* Logo */}
+            <Link
+              href="/"
+              className="text-2xl font-bold tracking-tight text-white hover:opacity-80 transition-all duration-300 hover:scale-105"
+            >
+              TerraSynth
+            </Link>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center space-x-8">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="text-sm font-medium text-white hover:text-white/80 relative group transition-colors"
+                >
+                  {item.label}
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white transition-all duration-300 group-hover:w-full" />
+                </Link>
+              ))}
+              <Button
+                className="bg-green-600 text-white hover:bg-green-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+              >
+                <Link href="/signup">Signup</Link>
+              </Button>
+            </nav>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="md:hidden p-2 rounded-full text-white hover:bg-white/10 transition-colors"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+            >
+              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Navigation */}
+        <div
+          className={cn(
+            "md:hidden shadow-lg transition-all duration-300 ease-in-out",
+            isMenuOpen
+              ? "max-h-[400px] opacity-100"
+              : "max-h-0 opacity-0 overflow-hidden",
+            "bg-gray-800"
+          )}
+        >
+          <nav className="container mx-auto px-4 py-6 flex flex-col space-y-4">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="text-base font-medium text-white hover:text-white/80 hover:bg-white/10 py-3 transition-colors rounded-lg px-4"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {item.label}
+              </Link>
+            ))}
+            <Button
+              className="mt-4 w-full bg-green-600 text-white hover:bg-green-700 shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              <Link href="/signup">Signup</Link>
+            </Button>
+          </nav>
+        </div>
+      </header>
+
       <div className="relative w-full h-screen">
         {/* Location selector */}
         <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-10 bg-white p-4 rounded-lg shadow-lg">
