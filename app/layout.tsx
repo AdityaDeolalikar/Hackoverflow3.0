@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Rowdies } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "./components/Navbar";
 
 const rowdies = Rowdies({
   weight: ['300', '400', '700'],
