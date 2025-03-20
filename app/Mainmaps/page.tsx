@@ -329,7 +329,7 @@ const Page = () => {
     try {
       setIsLoadingWeather(true);
       const response = await fetch(
-        `https://api.weatherapi.com/v1/current.json?key=df84f1d35dac491d828190240252003&q=${latitude},${longitude}`
+        `https://api.weatherapi.com/v1/current.json?key=${process.env.NEXT_PUBLIC_WEATHER_API_KEY}&q=${latitude},${longitude}`
       );
       
       if (!response.ok) {
