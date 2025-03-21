@@ -119,9 +119,25 @@ const getOptimumTree = (trees: Tree[]): Tree => {
   return trees.find(tree => tree.suitability === "High") || trees[0];
 };
 
+const pollutantFullForms: { [key: string]: string } = {
+  CO: "Carbon Monoxide",
+  DEW: "Dew Point Temperature (°C)",
+  H: "Relative Humidity (%)",
+  NO2: "Nitrogen Dioxide",
+  O3: "Ozone",
+  P: "Atmospheric Pressure (hPa or millibars)",
+  PM10: "Particulate Matter less than 10 micrometers in diameter",
+  PM25: "Particulate Matter less than 2.5 micrometers in diameter",
+  SO2: "Sulfur Dioxide",
+  T: "Temperature (°C)",
+  W: "Wind Speed (m/s or km/h, depending on the dataset)",
+  WD: "Wind Direction (degrees)",
+  WG: "Wind Gust (m/s or km/h)"
+};
+
 const Page = () => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [selectedCity, setSelectedCity] = useState<City>(indianCities[0]);
+  const [selectedCity, setSelectedCity] = useState<City>({ name: "Delhi", lat: 28.6139, lng: 77.209 });
   const [waqiData, setWaqiData] = useState<WaqiData | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
@@ -147,6 +163,34 @@ const Page = () => {
     setMap(newMap);
   }, [selectedCity]);
 
+  useEffect(() => {
+    if (window.google && window.google.maps) {
+      initMap();
+      return;
+    }
+
+    const scriptId = 'google-maps-script';
+    let script = document.getElementById(scriptId) as HTMLScriptElement;
+
+    if (!script) {
+      script = document.createElement("script");
+      script.id = scriptId;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=visualization,places&v=weekly`;
+      script.async = true;
+      script.defer = true;
+      script.onload = initMap;
+      document.head.appendChild(script);
+    } else if (!script.onload) {
+      script.onload = initMap;
+    }
+  }, [initMap]);
+
+  useEffect(() => {
+    if (map) {
+      map.setCenter({ lat: selectedCity.lat, lng: selectedCity.lng });
+    }
+  }, [selectedCity, map]);
+
   const fetchWaqiData = useCallback(
     async (city: City) => {
       try {
@@ -169,38 +213,6 @@ const Page = () => {
     },
     [map]
   );
-
-  useEffect(() => {
-    // Check if Google Maps script is already loaded
-    if (window.google && window.google.maps) {
-      initMap();
-      return;
-    }
-
-    // Add script only if it doesn't exist
-    const scriptId = 'google-maps-script';
-    let script = document.getElementById(scriptId) as HTMLScriptElement;
-    
-    if (!script) {
-      script = document.createElement("script");
-      script.id = scriptId;
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=visualization,places&v=weekly`;
-      script.async = true;
-      script.defer = true;
-      script.onload = initMap;
-      document.head.appendChild(script);
-    } else if (!script.onload) {
-      // If script exists but no onload handler
-      script.onload = initMap;
-    }
-
-    return () => {
-      // Don't remove the script on unmount, just clean up the onload handler
-      if (script) {
-        script.onload = null;
-      }
-    };
-  }, [initMap]);
 
   // Fetch air quality data when selected city changes
   useEffect(() => {
@@ -240,9 +252,7 @@ const Page = () => {
       setCircles([cityCircle]);
 
       // List pollutants
-      const pollutantsHtml = Object.entries(data.data.iaqi)
-        .map(([key, value]) => `<p>${key.toUpperCase()}: ${value.v}</p>`)
-        .join("");
+      
 
       // Add an info window with air quality data
       const infoWindow = new window.google.maps.InfoWindow({
@@ -253,8 +263,7 @@ const Page = () => {
             <p>Dominant Pollutant: ${data.data.dominentpol.toUpperCase()}</p>
             <p>Updated: ${data.data.time.s}</p>
             <hr>
-            <h4>Pollutants:</h4>
-            ${pollutantsHtml}
+           
           </div>
         `,
       });
@@ -428,6 +437,48 @@ const Page = () => {
     );
   }, [map, markers]);
 
+  useEffect(() => {
+    const initAutocomplete = () => {
+      const input = document.getElementById('location-input') as HTMLInputElement;
+      const autocomplete = new window.google.maps.places.Autocomplete(input);
+
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+
+        if (!place.geometry) {
+          console.error("No location found");
+          return;
+        }
+
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
+
+        console.log(`Latitude: ${lat}, Longitude: ${lng}`);
+        // You can set the selected city or perform any action with the coordinates here
+        setSelectedCity({ name: place.name, lat, lng });
+      });
+    };
+
+    if (window.google && window.google.maps && window.google.maps.places) {
+      initAutocomplete();
+    } else {
+      const scriptId = 'google-maps-places-script';
+      let script = document.getElementById(scriptId) as HTMLScriptElement;
+
+      if (!script) {
+        script = document.createElement("script");
+        script.id = scriptId;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`;
+        script.async = true;
+        script.defer = true;
+        script.onload = initAutocomplete;
+        document.head.appendChild(script);
+      } else if (!script.onload) {
+        script.onload = initAutocomplete;
+      }
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navbar */}
@@ -524,10 +575,18 @@ const Page = () => {
                 Select Location
               </h2>
 
+              {/* Google Maps Places Autocomplete Input */}
+              <input
+                id="location-input"
+                type="text"
+                placeholder="Search a place"
+                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+              />
+
               {/* User location button */}
               <Button 
                 onClick={getUserLocation}
-                className="w-full mb-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600 rounded-xl h-12 font-medium shadow-md hover:shadow-lg transition-all duration-300"
+                className="w-full mt-5 mb-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600 rounded-xl h-12 font-medium shadow-md hover:shadow-lg transition-all duration-300"
                 disabled={isLoadingLocation}
               >
                 {isLoadingLocation ? "Getting Location..." : "Use My Location"}
@@ -676,24 +735,14 @@ const Page = () => {
                        waqiData.data.aqi <= 300 ? "Very Unhealthy" :
                        "Hazardous"}
                     </p>
-                    <p className="mb-2">
-                      <span className="font-medium text-amber-800">Dominant Pollutant:</span>{" "}
-                      {waqiData.data.dominentpol.toUpperCase()}
-                    </p>
+                    
                     <p>
                       <span className="font-medium text-amber-800">Updated:</span>{" "}
                       {waqiData.data.time.s}
                     </p>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-2">
-                    {Object.entries(waqiData.data.iaqi).slice(0, 4).map(([key, value]) => (
-                      <div key={key} className="bg-white p-3 rounded-lg shadow-sm">
-                        <p className="font-medium text-amber-700 mb-1">{key.toUpperCase()}</p>
-                        <p className="font-bold text-lg">{value.v}</p>
-                      </div>
-                    ))}
-                  </div>
+                  
                 </div>
               )}
 
@@ -713,23 +762,7 @@ const Page = () => {
                     </p>
                   </div>
                   
-                  <h4 className="font-semibold text-emerald-700 mb-2">Soil Type Probabilities:</h4>
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    {soilData.wrb_class_probability.map((item, index) => (
-                      <div key={index} className="mb-2 last:mb-0">
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm text-emerald-800">{item[0]}</span>
-                          <span className="text-sm font-medium">{item[1]}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-emerald-500 h-2 rounded-full" 
-                            style={{ width: `${item[1]}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                 
                 </div>
               )}
             </div>
@@ -742,10 +775,7 @@ const Page = () => {
               <p className="text-gray-500">Showing environmental data for {selectedCity.name}</p>
             </div>
             <div className="h-[500px] md:h-[600px] relative w-full rounded-2xl shadow-md overflow-hidden border border-gray-100">
-              <div
-                ref={mapRef}
-                className="absolute inset-0"
-              />
+              <div ref={mapRef} className="absolute inset-0" />
             </div>
 
             {/* Add a new section below the map */}
