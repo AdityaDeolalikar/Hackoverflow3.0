@@ -68,6 +68,13 @@ interface SoilData {
   wrb_class_probability: [string, number][];
 }
 
+// Define interface for Tree data
+interface Tree {
+  name: string;
+  suitability: string;
+  reason: string;
+}
+
 // Declare global types for Google Maps
 declare global {
   interface Window {
@@ -98,6 +105,19 @@ const chineseCities: City[] = [
 
 // Combine all cities
 const allCities: City[] = [...indianCities, ...chineseCities];
+
+// Sample data for trees
+const trees: Tree[] = [
+  { name: "Neem", suitability: "High", reason: "Neem is drought-resistant and improves soil fertility." },
+  { name: "Banyan", suitability: "Medium", reason: "Banyan provides excellent shade and supports biodiversity." },
+  { name: "Peepal", suitability: "High", reason: "Peepal is known for its air-purifying properties." },
+];
+
+// Function to determine the optimum tree
+const getOptimumTree = (trees: Tree[]): Tree => {
+  // For simplicity, return the first tree with 'High' suitability
+  return trees.find(tree => tree.suitability === "High") || trees[0];
+};
 
 const Page = () => {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -726,6 +746,37 @@ const Page = () => {
                 ref={mapRef}
                 className="absolute inset-0"
               />
+            </div>
+
+            {/* Add a new section below the map */}
+            <div className="mt-6 p-5 bg-gradient-to-br from-green-50 to-lime-50 rounded-xl border border-green-100 shadow-sm">
+              <h3 className="font-bold text-lg text-green-800 mb-3">Recommended Trees to Plant</h3>
+              <table className="min-w-full bg-white rounded-lg shadow-md">
+                <thead>
+                  <tr>
+                    <th className="py-2 px-4 bg-green-100 text-left text-green-800 font-semibold">Plant</th>
+                    <th className="py-2 px-4 bg-green-100 text-left text-green-800 font-semibold">Suitability</th>
+                    <th className="py-2 px-4 bg-green-100 text-left text-green-800 font-semibold">Optimum</th>
+                    <th className="py-2 px-4 bg-green-100 text-left text-green-800 font-semibold">Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trees.map((tree, index) => (
+                    <tr key={index} className="border-b">
+                      <td className="py-2 px-4 text-green-700">{tree.name}</td>
+                      <td className="py-2 px-4 text-green-700">{tree.suitability}</td>
+                      <td className="py-2 px-4 text-green-700">{tree.suitability === "High" ? "Yes" : "No"}</td>
+                      <td className="py-2 px-4 text-green-700">{tree.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Highlight the optimum tree */}
+              <div className="mt-6 bg-white p-4 rounded-lg shadow-md">
+                <h4 className="font-bold text-green-800">Optimum Tree: {getOptimumTree(trees).name}</h4>
+                <p className="text-sm text-green-600">{getOptimumTree(trees).reason}</p>
+              </div>
             </div>
           </div>
         </div>
