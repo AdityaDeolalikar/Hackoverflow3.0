@@ -77,7 +77,7 @@ export function Navbar() {
               isScrolled ? "text-gray-900" : "text-white"
             )}
           >
-            TerraSynth
+            Van Rakshak
           </Link>
 
           {/* Desktop Navigation */}

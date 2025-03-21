@@ -8,16 +8,19 @@ const Testimonials = () => {
       name: 'Maria Rodriguez',
       role: 'Community Leader, Forest Restoration Project',
       quote: 'The AI-powered tree selection and planting recommendations have dramatically improved our reforestation success rate. We\'ve seen a 90% survival rate in our latest projects.',
+      photo: '/photo1.jpg'
     },
     {
       name: 'Dr. James Chen', 
       role: 'Environmental Scientist',
       quote: 'The data analytics and monitoring tools have revolutionized how we track forest health and carbon sequestration. It\'s bringing scientific precision to conservation.',
+      photo: '/photo2.jpg'
     },
     {
       name: 'Amara Okafor',
       role: 'Sustainable Farming Advocate',
       quote: 'The smart irrigation system has helped our community reduce water usage by 60% while improving crop yields. This technology is a game-changer for sustainable agriculture.',
+      photo: '/photo3.jpg'
     }
   ]
 
@@ -40,7 +43,7 @@ const Testimonials = () => {
                   <div className="absolute -top-3 -left-3 text-5xl text-green-300 opacity-50">&ldquo;</div>
                   <div className="h-16 w-16 rounded-full bg-gray-200 overflow-hidden border-2 border-green-100">
                     <Image 
-                      src="/avatars/profile.png"
+                      src={testimonial.photo}
                       alt={testimonial.name}
                       width={64}
                       height={64}

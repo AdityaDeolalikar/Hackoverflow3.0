@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { Nunito } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const nunito = Nunito({
-  weight: ['300', '400', '500', '600', '700'],
+const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
 });
@@ -20,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${nunito.className} antialiased`}>
+      <body className={`${inter.className} antialiased`}>
         
         <main>
           {children}
