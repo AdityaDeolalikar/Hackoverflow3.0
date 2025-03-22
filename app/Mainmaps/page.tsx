@@ -902,8 +902,19 @@ const Page = () => {
           {/* Map container */}
           <div className="w-full lg:w-2/3 flex flex-col">
             <div className="bg-white p-5 rounded-2xl shadow-md mb-4 border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-800">Air Quality Map</h2>
-              <p className="text-gray-500">Showing environmental data for {selectedCity.name}</p>
+              <h2 className="text-xl font-bold text-gray-800">Insert Requirements</h2>
+              
+              {/* Prompt input box */}
+              <div className="mt-4">
+                <div className="flex flex-col md:flex-row gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="Enter user input data"
+                    className="flex-1 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                  />
+                  
+                </div>
+              </div>
             </div>
             <div className="h-[500px] md:h-[600px] relative w-full rounded-2xl shadow-md overflow-hidden border border-gray-100">
               <div ref={mapRef} className="absolute inset-0" />
