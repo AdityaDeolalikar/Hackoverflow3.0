@@ -55,6 +55,7 @@ interface WeatherData {
     feelslike_c: number;
     vis_km: number;
     uv: number;
+    precip_mm: number;
   };
 }
 
@@ -73,6 +74,18 @@ interface Tree {
   name: string;
   suitability: string;
   reason: string;
+}
+
+// Define interface for API response
+interface TreeRecommendationResponse {
+  recommended_trees: Tree[];
+  optimum_tree: Tree;
+  input_data: {
+    temperature: number;
+    precipitation: number;
+    aqi: number;
+    soil_type: string;
+  };
 }
 
 // Declare global types for Google Maps
@@ -119,22 +132,6 @@ const getOptimumTree = (trees: Tree[]): Tree => {
   return trees.find(tree => tree.suitability === "High") || trees[0];
 };
 
-const pollutantFullForms: { [key: string]: string } = {
-  CO: "Carbon Monoxide",
-  DEW: "Dew Point Temperature (°C)",
-  H: "Relative Humidity (%)",
-  NO2: "Nitrogen Dioxide",
-  O3: "Ozone",
-  P: "Atmospheric Pressure (hPa or millibars)",
-  PM10: "Particulate Matter less than 10 micrometers in diameter",
-  PM25: "Particulate Matter less than 2.5 micrometers in diameter",
-  SO2: "Sulfur Dioxide",
-  T: "Temperature (°C)",
-  W: "Wind Speed (m/s or km/h, depending on the dataset)",
-  WD: "Wind Direction (degrees)",
-  WG: "Wind Gust (m/s or km/h)"
-};
-
 const Page = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const [selectedCity, setSelectedCity] = useState<City>({ name: "Delhi", lat: 28.6139, lng: 77.209 });
@@ -150,6 +147,9 @@ const Page = () => {
   const [isLoadingLocation, setIsLoadingLocation] = useState<boolean>(false);
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState<boolean>(false);
+  const [treeRecommendations, setTreeRecommendations] = useState<Tree[]>([]);
+  const [optimumTree, setOptimumTree] = useState<Tree | null>(null);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState<boolean>(false);
 
   const initMap = useCallback(() => {
     if (!mapRef.current) return;
@@ -418,6 +418,22 @@ const Page = () => {
             }
           });
           
+          // Create an info window for the user's location
+          const infoWindow = new window.google.maps.InfoWindow({
+            content: `
+              <div style="padding: 10px;">
+                <h3>Your Current Location</h3>
+                <p>Latitude: ${userCoords.lat.toFixed(6)}</p>
+                <p>Longitude: ${userCoords.lng.toFixed(6)}</p>
+              </div>
+            `
+          });
+          
+          // Open info window when marker is clicked
+          userMarker.addListener('click', () => {
+            infoWindow.open(map, userMarker);
+          });
+          
           setMarkers(prev => [...prev, userMarker]);
           
           // Center map on user location
@@ -435,7 +451,7 @@ const Page = () => {
         setIsLoadingLocation(false);
       }
     );
-  }, [map, markers]);
+  }, [map, markers, fetchWeatherData, fetchSoilData]);
 
   useEffect(() => {
     const initAutocomplete = () => {
@@ -445,7 +461,7 @@ const Page = () => {
       autocomplete.addListener('place_changed', () => {
         const place = autocomplete.getPlace();
 
-        if (!place.geometry) {
+        if (!place.geometry || !place.geometry.location) {
           console.error("No location found");
           return;
         }
@@ -455,7 +471,8 @@ const Page = () => {
 
         console.log(`Latitude: ${lat}, Longitude: ${lng}`);
         // You can set the selected city or perform any action with the coordinates here
-        setSelectedCity({ name: place.name, lat, lng });
+        const placeName = place.name || "Selected Location";
+        setSelectedCity({ name: placeName, lat, lng });
       });
     };
 
@@ -478,6 +495,62 @@ const Page = () => {
       }
     }
   }, []);
+
+  // Function to get tree recommendations from the API
+  const fetchTreeRecommendations = async () => {
+    // Only fetch if we have all the necessary data
+    if (!weatherData || !waqiData || !soilData || waqiData.status !== "ok") {
+      console.log("Missing data required for tree recommendations");
+      return;
+    }
+
+    try {
+      setIsLoadingRecommendations(true);
+      
+      // Prepare payload with data from different APIs
+      const payload = {
+        temperature: weatherData.current.temp_c,
+        precipitation: weatherData.current.precip_mm,
+        aqi: waqiData.data.aqi,
+        soil_type: soilData.wrb_class_name
+      };
+
+      // Call backend API
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'}/predict`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const data: TreeRecommendationResponse = await response.json();
+      
+      // Update state with the recommendations
+      setTreeRecommendations(data.recommended_trees);
+      setOptimumTree(data.optimum_tree);
+      
+      setIsLoadingRecommendations(false);
+    } catch (error) {
+      console.error("Error fetching tree recommendations:", error);
+      setIsLoadingRecommendations(false);
+      
+      // Fallback to sample data in case of error
+      setTreeRecommendations(trees);
+      setOptimumTree(getOptimumTree(trees));
+    }
+  };
+
+  // Fetch tree recommendations when all necessary data is available
+  useEffect(() => {
+    if (weatherData && waqiData && waqiData.status === "ok" && soilData) {
+      fetchTreeRecommendations();
+    }
+  }, [weatherData, waqiData, soilData]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -701,6 +774,18 @@ const Page = () => {
                       </div>
                       <p className="font-semibold text-lg">{weatherData.current.vis_km} km</p>
                     </div>
+                    <div className="bg-white p-3 rounded-lg shadow-sm col-span-2">
+                      <div className="flex items-center text-sm text-blue-800 mb-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5">
+                          <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path>
+                          <path d="M16 14v6"></path>
+                          <path d="M8 14v6"></path>
+                          <path d="M12 16v6"></path>
+                        </svg>
+                        <span>Precipitation</span>
+                      </div>
+                      <p className="font-semibold text-lg">{weatherData.current.precip_mm} mm</p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -778,35 +863,142 @@ const Page = () => {
               <div ref={mapRef} className="absolute inset-0" />
             </div>
 
-            {/* Add a new section below the map */}
-            <div className="mt-6 p-5 bg-gradient-to-br from-green-50 to-lime-50 rounded-xl border border-green-100 shadow-sm">
-              <h3 className="font-bold text-lg text-green-800 mb-3">Recommended Trees to Plant</h3>
-              <table className="min-w-full bg-white rounded-lg shadow-md">
-                <thead>
-                  <tr>
-                    <th className="py-2 px-4 bg-green-100 text-left text-green-800 font-semibold">Plant</th>
-                    <th className="py-2 px-4 bg-green-100 text-left text-green-800 font-semibold">Suitability</th>
-                    <th className="py-2 px-4 bg-green-100 text-left text-green-800 font-semibold">Optimum</th>
-                    <th className="py-2 px-4 bg-green-100 text-left text-green-800 font-semibold">Reason</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {trees.map((tree, index) => (
-                    <tr key={index} className="border-b">
-                      <td className="py-2 px-4 text-green-700">{tree.name}</td>
-                      <td className="py-2 px-4 text-green-700">{tree.suitability}</td>
-                      <td className="py-2 px-4 text-green-700">{tree.suitability === "High" ? "Yes" : "No"}</td>
-                      <td className="py-2 px-4 text-green-700">{tree.reason}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {/* Highlight the optimum tree */}
-              <div className="mt-6 bg-white p-4 rounded-lg shadow-md">
-                <h4 className="font-bold text-green-800">Optimum Tree: {getOptimumTree(trees).name}</h4>
-                <p className="text-sm text-green-600">{getOptimumTree(trees).reason}</p>
+            {/* Tree Recommendation Section */}
+            <div className="mt-6 bg-white p-6 rounded-2xl shadow-md border border-gray-100">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Tree Recommendations</h2>
+              <p className="text-gray-600 mb-6">Based on environmental factors in {selectedCity.name}</p>
+              
+              {/* Environmental Factors Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                {/* Temperature Card */}
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                  <h3 className="text-sm font-medium text-blue-700 mb-1">Temperature</h3>
+                  <div className="flex items-center">
+                    <Thermometer className="text-blue-500 mr-2" size={20} />
+                    <span className="text-2xl font-bold text-blue-900">
+                      {weatherData ? `${weatherData.current.temp_c}°C` : "Loading..."}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Air Quality Card */}
+                <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
+                  <h3 className="text-sm font-medium text-amber-700 mb-1">Air Quality</h3>
+                  <div className="flex items-center">
+                    <AlertCircle className="text-amber-500 mr-2" size={20} />
+                    <span className={`text-2xl font-bold ${
+                      !waqiData || waqiData.status !== "ok" ? "text-gray-700" :
+                      waqiData.data.aqi <= 50 ? "text-green-600" :
+                      waqiData.data.aqi <= 100 ? "text-yellow-600" :
+                      waqiData.data.aqi <= 150 ? "text-orange-600" :
+                      waqiData.data.aqi <= 200 ? "text-red-600" :
+                      waqiData.data.aqi <= 300 ? "text-purple-600" :
+                      "text-pink-600"
+                    }`}>
+                      {waqiData && waqiData.status === "ok" ? `AQI: ${waqiData.data.aqi}` : "Loading..."}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Soil Type Card */}
+                <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+                  <h3 className="text-sm font-medium text-emerald-700 mb-1">Soil Type</h3>
+                  <div className="flex items-center">
+                    <div className="w-5 h-5 rounded-full bg-emerald-500 mr-2"></div>
+                    <span className="text-lg font-bold text-emerald-900 truncate">
+                      {soilData ? soilData.wrb_class_name : "Loading..."}
+                    </span>
+                  </div>
+                </div>
               </div>
+              
+              {/* Optimum Tree Recommendation */}
+              {isLoadingRecommendations ? (
+                <div className="bg-gray-50 rounded-xl p-6 border border-gray-100 mb-6 animate-pulse">
+                  <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+                  <div className="h-6 bg-gray-200 rounded w-3/4 mb-3"></div>
+                  <div className="h-16 bg-gray-200 rounded mb-2"></div>
+                </div>
+              ) : optimumTree ? (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100 mb-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between">
+                    <div>
+                      <div className="flex items-center">
+                        <div className="bg-green-100 p-2 rounded-full mr-3">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17 14V2m-2 12V2m-2 12V2m-2 12V2M5 13c-.4.8-.6 1.6-.7 2.5 0 .5-.1 1-.1 1.5a8 8 0 0016 0c0-1.4-.5-2.7-1.2-3.8a14 14 0 01-4 3.8c-1.5.9-3 1.4-4.7 1.5h-.4L7 17.3c-.7-1.3-1.3-2.6-1.7-4.3H5z"/>
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-green-800">Optimum Tree Recommendation</h3>
+                          <p className="text-2xl font-bold text-green-900">{optimumTree.name}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white p-3 rounded-lg shadow-sm mt-4 md:mt-0 md:ml-4 md:max-w-md">
+                      <p className="text-gray-700">
+                        <span className="font-semibold text-green-700">Why this tree? </span>
+                        {optimumTree.reason}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-yellow-50 rounded-xl p-6 border border-yellow-100 mb-6">
+                  <p className="text-yellow-700">Waiting for data to provide tree recommendations...</p>
+                </div>
+              )}
+              
+              {/* All Tree Recommendations */}
+              <h3 className="text-lg font-bold text-gray-800 mb-4">All Suitable Trees</h3>
+              {isLoadingRecommendations ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[1, 2, 3].map((_, index) => (
+                    <div key={index} className="rounded-xl p-4 border border-gray-200 bg-gray-50 animate-pulse">
+                      <div className="h-4 bg-gray-200 rounded w-1/4 mb-3"></div>
+                      <div className="h-6 bg-gray-200 rounded w-2/3 mb-3"></div>
+                      <div className="h-12 bg-gray-200 rounded"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {(treeRecommendations.length > 0 ? treeRecommendations : trees).map((tree, index) => (
+                    <div 
+                      key={index} 
+                      className={`rounded-xl p-4 border transition-all duration-300 hover:shadow-md ${
+                        tree.suitability === "High" 
+                          ? "bg-green-50 border-green-200" 
+                          : tree.suitability === "Medium"
+                          ? "bg-yellow-50 border-yellow-200"
+                          : "bg-gray-50 border-gray-200"
+                      }`}
+                    >
+                      <div className="flex items-center mb-2">
+                        <div className={`w-3 h-3 rounded-full mr-2 ${
+                          tree.suitability === "High" 
+                            ? "bg-green-500" 
+                            : tree.suitability === "Medium"
+                            ? "bg-yellow-500"
+                            : "bg-gray-500"
+                        }`}></div>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                          tree.suitability === "High" 
+                            ? "bg-green-100 text-green-700" 
+                            : tree.suitability === "Medium"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}>
+                          {tree.suitability} Suitability
+                        </span>
+                      </div>
+                      <h4 className="text-lg font-bold text-gray-800 mb-1">{tree.name}</h4>
+                      <p className="text-gray-600 text-sm">{tree.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
