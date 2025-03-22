@@ -2,16 +2,57 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
-const Navbar = ({ toggleSidebar }) => (
-  <nav className="bg-white shadow-md p-4 flex justify-between items-center">
-    <div className="text-green-800 text-2xl font-bold">EcoForest</div>
-    <button className="text-green-800 md:hidden" onClick={toggleSidebar}>
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-      </svg>
-    </button>
-  </nav>
-);
+const Navbar = ({ toggleSidebar }) => {
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  
+  return (
+    <nav className="bg-white shadow-md p-4 flex justify-between items-center">
+      <div className="text-green-800 text-2xl font-bold">Van Rakshak</div>
+      <div className="flex items-center">
+        <div className="relative ml-4">
+          <button 
+            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+            className="flex items-center space-x-2 focus:outline-none"
+          >
+            <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-800">
+              <span className="text-lg">👤</span>
+            </div>
+            <span className="hidden md:block text-gray-700">John Doe</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+          
+          {profileMenuOpen && (
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+              <Link href="/dashboard/profile">
+                <div className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                  Your Profile
+                </div>
+              </Link>
+              <Link href="/dashboard/settings">
+                <div className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                  Settings
+                </div>
+              </Link>
+              <div className="border-t border-gray-100"></div>
+              <Link href="/login">
+                <div className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 cursor-pointer">
+                  Sign out
+                </div>
+              </Link>
+            </div>
+          )}
+        </div>
+        <button className="text-green-800 md:hidden ml-4" onClick={toggleSidebar}>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+    </nav>
+  );
+};
 
 const Sidebar = ({ isOpen, toggleSidebar }) => (
   <div className={`fixed inset-y-0 left-0 bg-white shadow-lg p-4 transform ${isOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0 w-16'} transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:w-64 z-50`}>
@@ -35,15 +76,13 @@ const Sidebar = ({ isOpen, toggleSidebar }) => (
       <li className="flex items-center text-green-800 py-3 px-2 hover:bg-green-100 rounded-lg cursor-pointer mt-2 bg-green-100">
         <span className="mr-2">🌳</span> <span className={`${isOpen ? 'inline' : 'hidden md:inline'}`}>Tree selection and plantation</span>
       </li>
-      <li className="flex items-center text-green-800 py-3 px-2 hover:bg-green-100 rounded-lg cursor-pointer mt-2">
-        <span className="mr-2">🌡️</span> <span className={`${isOpen ? 'inline' : 'hidden md:inline'}`}>Microclimate</span>
-      </li>
-      <li className="flex items-center text-green-800 py-3 px-2 hover:bg-green-100 rounded-lg cursor-pointer mt-2">
-        <span className="mr-2">📄</span> <span className={`${isOpen ? 'inline' : 'hidden md:inline'}`}>Report</span>
-      </li>
-      <li className="flex items-center text-green-800 py-3 px-2 hover:bg-green-100 rounded-lg cursor-pointer mt-2">
-        <span className="mr-2">🎓</span> <span className={`${isOpen ? 'inline' : 'hidden md:inline'}`}>Certificates</span>
-      </li>
+      
+      <Link href="/dashboard/report">
+        <li className="flex items-center text-green-800 py-3 px-2 hover:bg-green-100 rounded-lg cursor-pointer mt-2">
+          <span className="mr-2">📄</span> <span className={`${isOpen ? 'inline' : 'hidden md:inline'}`}>Report</span>
+        </li>
+      </Link>
+      
       <Link href="/dashboard/community">
         <li className="flex items-center text-green-800 py-3 px-2 hover:bg-green-100 rounded-lg cursor-pointer mt-2">
           <span className="mr-2">👥</span> <span className={`${isOpen ? 'inline' : 'hidden md:inline'}`}>Community Engagement</span>
