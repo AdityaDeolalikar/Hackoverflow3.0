@@ -53,9 +53,11 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => (
       <li className="flex items-center text-green-800 py-3 px-2 hover:bg-green-100 rounded-lg cursor-pointer mt-2">
         <span className="mr-2">🎓</span> <span className={`${isOpen ? 'inline' : 'hidden md:inline'}`}>Certificates</span>
       </li>
-      <li className="flex items-center text-green-800 py-3 px-2 hover:bg-green-100 rounded-lg cursor-pointer mt-2">
-        <span className="mr-2">👥</span> <span className={`${isOpen ? 'inline' : 'hidden md:inline'}`}>Community Engagement</span>
-      </li>
+      <Link href="/dashboard/community">
+        <li className="flex items-center text-green-800 py-3 px-2 hover:bg-green-100 rounded-lg cursor-pointer mt-2">
+          <span className="mr-2">👥</span> <span className={`${isOpen ? 'inline' : 'hidden md:inline'}`}>Community Engagement</span>
+        </li>
+      </Link>
     </ul>
   </div>
 );

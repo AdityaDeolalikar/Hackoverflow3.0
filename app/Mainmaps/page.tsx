@@ -85,6 +85,7 @@ interface TreeRecommendationResponse {
     precipitation: number;
     aqi: number;
     soil_type: string;
+    coordinates: [number, number]; // [latitude, longitude]
   };
 }
 
@@ -150,6 +151,7 @@ const Page = () => {
   const [treeRecommendations, setTreeRecommendations] = useState<Tree[]>([]);
   const [optimumTree, setOptimumTree] = useState<Tree | null>(null);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState<boolean>(false);
+  const [circleRadius, setCircleRadius] = useState<number>(10000); // 10km default radius
 
   const initMap = useCallback(() => {
     if (!mapRef.current) return;
@@ -246,7 +248,7 @@ const Page = () => {
         fillOpacity: 0.35,
         map: currentMap,
         center: { lat: selectedCity.lat, lng: selectedCity.lng },
-        radius: 10000, // 10 km radius
+        radius: circleRadius, // Use selected radius
       });
 
       setCircles([cityCircle]);
@@ -381,7 +383,7 @@ const Page = () => {
     }
   }, [selectedCity]);
 
-  // Update the getUserLocation function to also fetch weather data
+  // Update the getUserLocation function to also update the selected city with user location
   const getUserLocation = useCallback(() => {
     if (!navigator.geolocation) {
       alert("Geolocation is not supported by your browser");
@@ -398,6 +400,13 @@ const Page = () => {
         };
         
         setUserLocation(userCoords);
+        
+        // Also update the selected city to use the user's location
+        setSelectedCity({
+          name: "Your Location",
+          lat: userCoords.lat,
+          lng: userCoords.lng
+        });
         
         // Fetch weather data for user location
         await fetchWeatherData(userCoords.lat, userCoords.lng);
@@ -512,8 +521,13 @@ const Page = () => {
         temperature: weatherData.current.temp_c,
         precipitation: weatherData.current.precip_mm,
         aqi: waqiData.data.aqi,
-        soil_type: soilData.wrb_class_name
+        soil_type: soilData.wrb_class_name,
+        // Add latitude and longitude from the selected city
+        latitude: selectedCity.lat,
+        longitude: selectedCity.lng
       };
+
+      console.log("Sending payload to backend:", payload);
 
       // Call backend API
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'}/predict`, {
@@ -529,6 +543,7 @@ const Page = () => {
       }
 
       const data: TreeRecommendationResponse = await response.json();
+      console.log("Received tree recommendations:", data);
       
       // Update state with the recommendations
       setTreeRecommendations(data.recommended_trees);
@@ -655,6 +670,37 @@ const Page = () => {
                 placeholder="Search a place"
                 className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
               />
+
+              {/* Radius selector */}
+              <div className="mt-4">
+                <label htmlFor="radius-selector" className="block text-sm font-medium text-gray-700 mb-2">
+                  Coverage Radius: {(circleRadius/1000).toFixed(0)} km
+                </label>
+                <input
+                  type="range"
+                  id="radius-selector"
+                  min="1000"
+                  max="50000"
+                  step="1000"
+                  value={circleRadius}
+                  onChange={(e) => {
+                    const newRadius = parseInt(e.target.value);
+                    setCircleRadius(newRadius);
+                    
+                    // Update circle on map if it exists
+                    if (map && circles.length > 0) {
+                      circles.forEach(circle => {
+                        circle.setRadius(newRadius);
+                      });
+                    }
+                  }}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>1km</span>
+                  <span>50km</span>
+                </div>
+              </div>
 
               {/* User location button */}
               <Button 
